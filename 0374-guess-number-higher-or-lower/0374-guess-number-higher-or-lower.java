@@ -14,11 +14,11 @@ public class Solution extends GuessGame {
             int mid = min + (max - min) / 2;
             int res = guess(mid);
             if (res == 0) {
-                return mid;          // Correct number
+                return mid;          
             } else if (res == -1) {
-                max = mid - 1;       // Guess is too high
+                max = mid - 1;       
             } else {
-                min = mid + 1;       // Guess is too low
+                min = mid + 1;       
             }
         }
         return -1;
