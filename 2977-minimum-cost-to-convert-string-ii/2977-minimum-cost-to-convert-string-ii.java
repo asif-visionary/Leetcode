@@ -1,141 +1,62 @@
-import java.util.*;
-
-public class Solution {
-    private Map<String, Integer> indices;
-    private List<List<Long>> costs;
-
-    private void assignIndices(List<String> original, List<String> changed) {
-        Set<String> distinctStrings = new HashSet<>(original);
-        distinctStrings.addAll(changed);
-
-        int index = 0;
-        for (String str : distinctStrings) {
-            indices.put(str, index++);
+class Solution {
+    private int index = 0;
+    public long minimumCost(String source, String target, String[] original, String[] changed, int[] cost) {
+        TrieNode root = new TrieNode();
+        for(String s : original) insert(s, root);
+        for(String s : changed) insert(s, root);
+        int[][] dist = new int[index][index];
+        for(int i = 0; i < index; i++) {
+            Arrays.fill(dist[i], Integer.MAX_VALUE);
+            dist[i][i] = 0;
         }
-    }
-
-    private void buildGraph(List<String> original, List<String> changed, List<Integer> cost, Map<String, Integer> indices, List<List<Pair<Integer, Integer>>> graph) {
-        int n = original.size();
-
-        for (int i = 0; i < n; ++i) {
-            int u = indices.get(original.get(i));
-            int v = indices.get(changed.get(i));
-            int w = cost.get(i);
-            graph.get(u).add(new Pair<>(v, w));
+        for(int i = 0; i < cost.length; i++) {
+            int x = getIndex(original[i], root), y = getIndex(changed[i], root);
+            if(cost[i] < dist[x][y]) dist[x][y] = cost[i];
         }
-    }
-
-    private List<Long> dijkstra(List<List<Pair<Integer, Integer>>> graph, int source, int n) {
-        List<Long> dist = new ArrayList<>(Collections.nCopies(n, 1000000000000L));
-        dist.set(source, 0L);
-
-        PriorityQueue<Pair<Integer, Integer>> pq = new PriorityQueue<>(Comparator.comparingInt(p -> -p.first));
-        pq.add(new Pair<>(0, source));
-
-        while (!pq.isEmpty()) {
-            int u = pq.peek().second;
-            int cost = -pq.peek().first;
-            pq.poll();
-
-            if (cost > dist.get(u)) continue;
-
-            for (Pair<Integer, Integer> neighbor : graph.get(u)) {
-                int v = neighbor.first;
-                int edgeCost = neighbor.second;
-
-                if (dist.get(u) + edgeCost < dist.get(v)) {
-                    dist.set(v, dist.get(u) + edgeCost);
-                    pq.add(new Pair<>(-dist.get(v).intValue(), v));
-                }
-            }
-        }
-
-        return dist;
-    }
-
-    private List<List<Long>> minCostMatrix(List<String> original, List<String> changed, List<Integer> cost) {
-        assignIndices(original, changed);
-        int n = indices.size();
-
-        // Build graph with integer indices
-        List<List<Pair<Integer, Integer>>> graph = new ArrayList<>(n);
-        for (int i = 0; i < n; ++i) {
-            graph.add(new ArrayList<>());
-        }
-        buildGraph(original, changed, cost, indices, graph);
-
-        // Initialize cost matrix with all distances set to infinity
-        List<List<Long>> costMatrix = new ArrayList<>(n);
-        for (int i = 0; i < n; ++i) {
-            costMatrix.add(new ArrayList<>(Collections.nCopies(n, 1000000000000L)));
-        }
-
-        // Run Dijkstra's algorithm for each node
-        for (int i = 0; i < n; ++i) {
-            List<Long> distances = dijkstra(graph, i, n);
-
-            // Update the cost matrix
-            for (int j = 0; j < n; ++j) {
-                costMatrix.get(i).set(j, distances.get(j));
-            }
-        }
-
-        return costMatrix;
-    }
-
-    private long minCost(String source, String target) {
-        int n = source.length();
-
-        // Collect unique lengths present in the indices map
-        Set<Integer> uniqueLengths = new HashSet<>(indices.size());
-        for (Map.Entry<String, Integer> entry : indices.entrySet()) {
-            uniqueLengths.add(entry.getKey().length());
-        }
-
-        // Initialize dp array
-       
-       List<Long> dp = new ArrayList<>(Collections.nCopies(n + 1, 1e12).stream().map(Double::longValue).collect(Collectors.toList()));
-
-
-        // Base case: converting an empty string to an empty string costs 0
-        dp.set(0, 0L);
-
-        for (int i = 1; i <= n; ++i) {
-            for (int len : uniqueLengths) {
-                if (i - len >= 0) {
-                    String substrSource = source.substring(i - len, i);
-                    String substrTarget = target.substring(i - len, i);
-
-                    if (substrSource.equals(substrTarget)) {
-                        dp.set(i, Math.min(dp.get(i), dp.get(i - len)));
-                    } else if (indices.containsKey(substrSource) && indices.containsKey(substrTarget)) {
-                        int u = indices.get(substrSource);
-                        int v = indices.get(substrTarget);
-                        dp.set(i, Math.min(dp.get(i), dp.get(i - len) + costs.get(u).get(v)));
+        for(int i = 0; i < index; i++) {
+            for(int j = 0; j < index; j++) {
+                if(dist[j][i] != Integer.MAX_VALUE) {
+                    for(int k = 0; k < index; k++) {
+                        if(dist[i][k] != Integer.MAX_VALUE && dist[j][i] + dist[i][k] < dist[j][k]) dist[j][k] = dist[j][i] + dist[i][k];
                     }
                 }
             }
-            if (source.charAt(i - 1) == target.charAt(i - 1))
-                dp.set(i, Math.min(dp.get(i), dp.get(i - 1)));
         }
-
-        return (dp.get(n) >= 1e12) ? -1 : dp.get(n);
-    }
-
-    public long minimumCost(String source, String target, String[] original, String[] changed, int[] cost) {
-        indices = new HashMap<>();
-        costs = minCostMatrix(Arrays.asList(original), Arrays.asList(changed), Arrays.stream(cost).boxed().collect(Collectors.toList()));
-        return minCost(source, target);
-    }
-
-    // Pair class for simplicity
-    static class Pair<A, B> {
-        A first;
-        B second;
-
-        public Pair(A first, B second) {
-            this.first = first;
-            this.second = second;
+        char[] arr1 = source.toCharArray(), arr2 = target.toCharArray();
+        int n = arr1.length;
+        long[] dp = new long[n + 1];
+        Arrays.fill(dp, Long.MAX_VALUE);
+        dp[0] = 0;
+        for(int i = 0; i < n; i++) {
+            if(dp[i] == Long.MAX_VALUE) continue;
+            TrieNode node1 = root, node2 = root;
+            if(arr1[i] == arr2[i] && dp[i] < dp[i + 1]) dp[i + 1] = dp[i];
+            for(int j = i; j < n; j++) {
+                node1 = node1.next[arr1[j] - 'a'];
+                node2 = node2.next[arr2[j] - 'a'];
+                if(node1 == null || node2 == null) break;
+                if(node1.index != -1 && node2.index != -1 && dist[node1.index][node2.index] != Integer.MAX_VALUE && dist[node1.index][node2.index] + dp[i] < dp[j + 1]) dp[j + 1] = dist[node1.index][node2.index] + dp[i];
+            }
         }
+        return dp[n] == Long.MAX_VALUE ? -1 : dp[n];
     }
+    private void insert(String s, TrieNode root) {
+        for(int i = 0; i < s.length(); i++) {
+            int current = s.charAt(i) - 'a';
+            if(root.next[current] == null) root.next[current] = new TrieNode();
+            root = root.next[current];
+        }
+        if(root.index == -1) root.index = index++;
+    }
+    private int getIndex(String s, TrieNode root) {
+        for(int i = 0; i < s.length(); i++) {
+            int current = s.charAt(i) - 'a';
+            root = root.next[current];
+        }
+        return root.index;
+    }
+}
+class TrieNode {
+    TrieNode[] next = new TrieNode[26];
+    int index = -1;
 }
